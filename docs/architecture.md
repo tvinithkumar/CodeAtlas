@@ -55,6 +55,43 @@ natural-language queries
 
 The ranked lists are merged with Reciprocal Rank Fusion before returning top K.
 
+## Evaluation
+
+The eval harness compares retrieval modes against YAML benchmark cases:
+
+```text
+evals/benchmark_cases.yaml
+evals/run_retrieval_eval.py
+evals/metrics.py
+```
+
+Core metrics:
+
+```text
+Recall@5
+Recall@10
+MRR
+Hit@1
+Context Compression Ratio
+```
+
+`Context Compression Ratio` is computed as:
+
+```text
+raw repository context tokens / retrieved context tokens
+```
+
+This approximates how much source code an agent avoids reading when using
+CodeAtlas retrieval.
+
+## Code Windows
+
+`CodeWindowFetcher` supports bounded file reads for future agent/MCP tools:
+
+```bash
+codeatlas window --repo /path/to/repo --file app/config.py --line 42 --radius 20
+```
+
 Postgres and a dedicated graph database are intentionally deferred until after the MVP
 pipeline proves useful locally.
 

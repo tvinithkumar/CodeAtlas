@@ -14,13 +14,21 @@ class ReciprocalRankFusion:
         hits: dict[str, SearchHit] = {}
         for weight, ranked_hits in ranked_lists:
             for rank, hit in enumerate(ranked_hits, start=1):
-                scores[hit.id] = scores.get(hit.id, 0.0) + weight / (self.rank_constant + rank)
-                hits.setdefault(hit.id, hit)
+                key = self._dedupe_key(hit)
+                scores[key] = scores.get(key, 0.0) + weight / (self.rank_constant + rank)
+                hits.setdefault(key, hit)
 
         return [
-            self._with_score(hits[hit_id], score)
-            for hit_id, score in sorted(scores.items(), key=lambda item: item[1], reverse=True)[:limit]
+            self._with_score(hits[key], score)
+            for key, score in sorted(scores.items(), key=lambda item: item[1], reverse=True)[:limit]
         ]
+
+    def _dedupe_key(self, hit: SearchHit) -> str:
+        if hit.line_start is not None and hit.line_end is not None:
+            return f"{hit.file_path}:{hit.line_start}:{hit.line_end}"
+        if hit.symbol:
+            return f"{hit.file_path}:{hit.symbol}"
+        return hit.id
 
     def _with_score(self, hit: SearchHit, score: float) -> SearchHit:
         return SearchHit(
@@ -34,4 +42,3 @@ class ReciprocalRankFusion:
             line_start=hit.line_start,
             line_end=hit.line_end,
         )
-

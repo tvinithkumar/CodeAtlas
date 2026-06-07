@@ -119,6 +119,7 @@ codeatlas search "retryBackoffMs" --repo /path/to/repo --no-vectors
 codeatlas explain retry_delay
 codeatlas find-usage load_user
 codeatlas impact REQUEST_TIMEOUT_MS
+codeatlas window --repo /path/to/repo --file app/config.py --line 42 --radius 20
 ```
 
 By default, the SQLite database is written to:
@@ -190,6 +191,32 @@ Hybrid search routes exact-looking queries toward ripgrep, then fuses ripgrep,
 FTS, and vector results with Reciprocal Rank Fusion. Exact code-like queries
 such as `retryBackoffMs`, `alert_grouping_latency`, `ConnectionRefusedError`,
 or `/api/v2/tickets` get a heavier ripgrep weight.
+
+## Evaluation
+
+CodeAtlas includes a small retrieval evaluation harness:
+
+```bash
+codeatlas-eval --repo examples/benchmark_repo --cases evals/benchmark_cases.yaml
+```
+
+It reports per-mode and per-case metrics for:
+
+```text
+Recall@5
+Recall@10
+MRR
+Hit@1
+Context Compression Ratio
+```
+
+The default benchmark compares:
+
+```text
+ripgrep
+SQLite FTS
+hybrid CodeAtlas retrieval
+```
 
 Planned next steps:
 

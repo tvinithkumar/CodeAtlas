@@ -18,7 +18,8 @@ class FTSSearch:
                 content=str(row["content"]),
                 source="sqlite",
                 retrieval_method="fts",
+                line_start=int(row["start_line"]),
+                line_end=int(row["end_line"]),
             )
             for row in self.sqlite_store.search(query, limit=limit)
         ]
-

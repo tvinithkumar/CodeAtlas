@@ -213,7 +213,14 @@ class SQLiteStore:
             return []
         rows = self.connection.execute(
             """
-            SELECT c.id, c.file_path, c.symbol_qualified_name, c.content, bm25(chunks_fts) AS score
+            SELECT
+                c.id,
+                c.file_path,
+                c.symbol_qualified_name,
+                c.content,
+                c.start_line,
+                c.end_line,
+                bm25(chunks_fts) AS score
             FROM chunks_fts
             JOIN chunks c ON c.id = chunks_fts.id
             WHERE chunks_fts MATCH ?

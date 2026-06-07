@@ -1,0 +1,38 @@
+- id: retry_config
+  query: "where is retry backoff configured"
+  expected_symbols:
+    - RETRY_BACKOFF_MS
+    - retry_delay
+  expected_files:
+    - service.py
+
+- id: latency_metric
+  query: "which function emits latency metric"
+  expected_symbols:
+    - load_user
+    - Metrics.emit_latency
+  expected_files:
+    - service.py
+
+- id: timeout_impact
+  query: "REQUEST_TIMEOUT_MS"
+  expected_symbols:
+    - REQUEST_TIMEOUT_MS
+    - load_user
+  expected_files:
+    - service.py
+
+- id: api_path
+  query: "api_handler"
+  expected_symbols:
+    - api_handler
+  expected_files:
+    - service.py
+
+- id: retry_log
+  query: "retry configured"
+  expected_symbols:
+    - retry_delay
+  expected_files:
+    - service.py
+

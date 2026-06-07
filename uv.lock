@@ -304,6 +304,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastembed" },
+    { name = "pyyaml" },
     { name = "qdrant-client" },
 ]
 
@@ -313,7 +314,6 @@ dev = [
 ]
 llm = [
     { name = "litellm" },
-    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -321,7 +321,7 @@ requires-dist = [
     { name = "fastembed", specifier = ">=0.4.0" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.50.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pyyaml", marker = "extra == 'llm'", specifier = ">=6.0.0" },
+    { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "qdrant-client", specifier = ">=1.9.0" },
 ]
 provides-extras = ["dev", "llm"]

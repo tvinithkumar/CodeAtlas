@@ -7,6 +7,7 @@ from pathlib import Path
 from codeatlas.common.config import Settings
 from codeatlas.enrichment.embedding_generator import LocalEmbeddingGenerator
 from codeatlas.indexing.repository_indexer import RepositoryIndexer
+from codeatlas.retrieval.code_window import CodeWindowFetcher
 from codeatlas.retrieval.graph_search import GraphSearch
 from codeatlas.retrieval.hybrid_search import HybridSearch
 from codeatlas.storage.sqlite_store import SQLiteStore
@@ -40,6 +41,12 @@ def main() -> None:
     impact_parser.add_argument("symbol")
     impact_parser.add_argument("--depth", type=int, default=2)
 
+    window_parser = subparsers.add_parser("window", help="Fetch a bounded code window")
+    window_parser.add_argument("--repo", type=Path, required=True)
+    window_parser.add_argument("--file", required=True)
+    window_parser.add_argument("--line", type=int, required=True)
+    window_parser.add_argument("--radius", type=int, default=20)
+
     args = parser.parse_args()
     settings = Settings.from_yaml(args.config) if args.config else Settings(sqlite_path=args.sqlite_path)
 
@@ -62,6 +69,11 @@ def main() -> None:
             )
         result = RepositoryIndexer(settings=settings, enable_qdrant=not args.no_qdrant).index(args.repo)
         print(json.dumps(result, indent=2))
+        return
+
+    if args.command == "window":
+        window = CodeWindowFetcher().get_code_window(args.repo, args.file, args.line, args.radius)
+        print(json.dumps(window.__dict__, indent=2))
         return
 
     sqlite_store = SQLiteStore(settings.sqlite_path)
