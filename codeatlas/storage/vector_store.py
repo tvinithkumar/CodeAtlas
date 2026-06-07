@@ -24,7 +24,7 @@ class QdrantVectorStore:
             return
         self.client.create_collection(
             collection_name=self.settings.qdrant_collection,
-            vectors_config=VectorParams(size=self.settings.embedding_dimension, distance=Distance.COSINE),
+            vectors_config=VectorParams(size=self.settings.embeddings.dimensions, distance=Distance.COSINE),
         )
 
     def upsert(self, points: list[tuple[str, list[float], dict[str, object]]]) -> None:
@@ -55,4 +55,3 @@ class QdrantVectorStore:
             }
             for hit in hits
         ]
-

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from codeatlas.common.config import Settings
-from codeatlas.enrichment.embedding_generator import LocalEmbeddingGenerator
+from codeatlas.embedding.factory import build_embedding_provider
 from codeatlas.indexing.repository_indexer import RepositoryIndexer
 from codeatlas.retrieval.code_window import CodeWindowFetcher
 from codeatlas.retrieval.graph_search import GraphSearch
@@ -31,6 +31,10 @@ def main() -> None:
     index_parser.add_argument("--llm-api-key", help="OpenAI-compatible LLM API key")
     index_parser.add_argument("--llm-temperature", type=float, help="LLM temperature")
     index_parser.add_argument("--llm-max-tokens", type=int, help="LLM max output tokens")
+    index_parser.add_argument("--embedding-provider", choices=["fastembed", "sentence_transformers", "hash"])
+    index_parser.add_argument("--embedding-model")
+    index_parser.add_argument("--embedding-dimensions", type=int)
+    index_parser.add_argument("--embedding-batch-size", type=int)
 
     search_parser = subparsers.add_parser("search", help="Search indexed code")
     search_parser.add_argument("query")
@@ -75,7 +79,7 @@ def main() -> None:
         vector_store = None if args.no_vectors else QdrantVectorStore(settings)
         search = HybridSearch(
             sqlite_store,
-            LocalEmbeddingGenerator(settings.embedding_model),
+            build_embedding_provider(settings.embeddings),
             vector_store,
             repo_path=args.repo,
         )
@@ -105,14 +109,26 @@ def _settings_with_llm_overrides(settings: Settings, args: argparse.Namespace) -
     max_tokens = args.llm_max_tokens if args.llm_max_tokens is not None else settings.llm.max_tokens
     base_url = args.llm_base_url or settings.llm.base_url
     api_key = args.llm_api_key or settings.llm.api_key
+    embedding_provider = args.embedding_provider or settings.embeddings.provider
+    embedding_model = args.embedding_model or settings.embeddings.model
+    embedding_dimensions = (
+        args.embedding_dimensions if args.embedding_dimensions is not None else settings.embeddings.dimensions
+    )
+    embedding_batch_size = (
+        args.embedding_batch_size if args.embedding_batch_size is not None else settings.embeddings.batch_size
+    )
 
     return Settings.from_dict(
         {
             "sqlite_path": settings.sqlite_path,
             "qdrant_url": settings.qdrant_url,
             "qdrant_collection": settings.qdrant_collection,
-            "embedding_dimension": settings.embedding_dimension,
-            "embedding_model": settings.embedding_model,
+            "embeddings": {
+                "provider": embedding_provider,
+                "model": embedding_model,
+                "dimensions": embedding_dimensions,
+                "batch_size": embedding_batch_size,
+            },
             "llm": {
                 "enabled": enabled,
                 "provider": provider,

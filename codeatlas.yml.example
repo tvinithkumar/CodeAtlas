@@ -1,3 +1,9 @@
+embeddings:
+  provider: sentence_transformers
+  model: jinaai/jina-embeddings-v2-base-code
+  dimensions: 768
+  batch_size: 32
+
 llm:
   enabled: true
   provider: lmstudio

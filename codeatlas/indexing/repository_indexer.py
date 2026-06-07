@@ -7,7 +7,8 @@ from pathlib import Path
 from codeatlas.chunking.ast_chunker import ASTChunker
 from codeatlas.chunking.models import CodeChunk
 from codeatlas.common.config import Settings
-from codeatlas.enrichment.embedding_generator import EmbeddingGenerator, LocalEmbeddingGenerator
+from codeatlas.embedding.base import EmbeddingProvider
+from codeatlas.embedding.factory import build_embedding_provider
 from codeatlas.enrichment.llm.enricher import LLMEnricher
 from codeatlas.enrichment.llm.lmstudio_client import LMStudioClient
 from codeatlas.enrichment.llm.litellm_client import LiteLLMClient
@@ -25,7 +26,7 @@ class RepositoryIndexer:
         self,
         settings: Settings | None = None,
         enable_qdrant: bool = True,
-        embedding_generator: EmbeddingGenerator | None = None,
+        embedding_generator: EmbeddingProvider | None = None,
         llm_enricher: LLMEnricher | None = None,
     ) -> None:
         self.settings = settings or Settings()
@@ -35,7 +36,7 @@ class RepositoryIndexer:
         self.chunker = ASTChunker()
         self.profiler = SymbolProfiler()
         self.llm_enricher = llm_enricher or self._build_llm_enricher()
-        self.embedding_generator = embedding_generator or LocalEmbeddingGenerator(self.settings.embedding_model)
+        self.embedding_generator = embedding_generator or build_embedding_provider(self.settings.embeddings)
         self.sqlite_store = SQLiteStore(self.settings.sqlite_path)
         self.vector_store = QdrantVectorStore(self.settings) if enable_qdrant else None
 
@@ -175,6 +176,10 @@ def main() -> None:
     parser.add_argument("--llm-api-key", help="OpenAI-compatible LLM API key")
     parser.add_argument("--llm-temperature", type=float, help="LLM temperature")
     parser.add_argument("--llm-max-tokens", type=int, help="LLM max output tokens")
+    parser.add_argument("--embedding-provider", choices=["fastembed", "sentence_transformers", "hash"])
+    parser.add_argument("--embedding-model")
+    parser.add_argument("--embedding-dimensions", type=int)
+    parser.add_argument("--embedding-batch-size", type=int)
     args = parser.parse_args()
 
     settings = Settings.from_yaml(args.config) if args.config else Settings(sqlite_path=args.sqlite_path)
@@ -191,14 +196,26 @@ def _settings_with_llm_overrides(settings: Settings, args: argparse.Namespace) -
     max_tokens = args.llm_max_tokens if args.llm_max_tokens is not None else settings.llm.max_tokens
     base_url = args.llm_base_url or settings.llm.base_url
     api_key = args.llm_api_key or settings.llm.api_key
+    embedding_provider = args.embedding_provider or settings.embeddings.provider
+    embedding_model = args.embedding_model or settings.embeddings.model
+    embedding_dimensions = (
+        args.embedding_dimensions if args.embedding_dimensions is not None else settings.embeddings.dimensions
+    )
+    embedding_batch_size = (
+        args.embedding_batch_size if args.embedding_batch_size is not None else settings.embeddings.batch_size
+    )
 
     return Settings.from_dict(
         {
             "sqlite_path": settings.sqlite_path,
             "qdrant_url": settings.qdrant_url,
             "qdrant_collection": settings.qdrant_collection,
-            "embedding_dimension": settings.embedding_dimension,
-            "embedding_model": settings.embedding_model,
+            "embeddings": {
+                "provider": embedding_provider,
+                "model": embedding_model,
+                "dimensions": embedding_dimensions,
+                "batch_size": embedding_batch_size,
+            },
             "llm": {
                 "enabled": enabled,
                 "provider": provider,

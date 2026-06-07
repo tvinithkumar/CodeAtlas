@@ -9,7 +9,7 @@ RepositoryLoader
   -> ASTChunker
   -> SymbolProfiler
   -> optional LLMEnricher
-  -> LocalEmbeddingGenerator
+  -> EmbeddingProvider
   -> SQLiteStore + QdrantVectorStore
   -> RipgrepRetriever + FTSSearch + VectorSearch
   -> HybridSearch + GraphSearch
@@ -19,6 +19,30 @@ SQLite is the source of truth for files, symbols, chunks, and FTS5 keyword searc
 It also stores `symbol_edges` for the first graph search implementation. Qdrant
 stores chunk vectors for semantic retrieval. If Qdrant is unavailable, indexing
 still succeeds and SQLite search remains usable.
+
+Embedding providers are pluggable:
+
+```text
+codeatlas/embedding/
+  base.py
+  fastembed_provider.py
+  sentence_transformers_provider.py
+  hash_provider.py
+  factory.py
+```
+
+Recommended CodeAtlas embedding config:
+
+```yaml
+embeddings:
+  provider: sentence_transformers
+  model: jinaai/jina-embeddings-v2-base-code
+  dimensions: 768
+  batch_size: 32
+```
+
+The embedding text combines symbol identity, generated profile text, and code
+context before upserting into Qdrant.
 
 Ripgrep is the primary lexical retriever for exact code search. It uses
 `rg --json` and returns normalized retrieval chunks with file path, line range,

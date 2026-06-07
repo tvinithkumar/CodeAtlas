@@ -17,14 +17,21 @@ class LLMSettings:
 
 
 @dataclass(frozen=True)
+class EmbeddingSettings:
+    provider: str = "fastembed"
+    model: str = "BAAI/bge-small-en-v1.5"
+    dimensions: int = 384
+    batch_size: int = 32
+
+
+@dataclass(frozen=True)
 class Settings:
     """Runtime settings for the local MVP indexer."""
 
     sqlite_path: Path = Path(".codeatlas/codeatlas.db")
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "codeatlas_chunks"
-    embedding_dimension: int = 384
-    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embeddings: EmbeddingSettings = EmbeddingSettings()
     llm: LLMSettings = LLMSettings()
     include_globs: tuple[str, ...] = ("*.py",)
     exclude_dirs: tuple[str, ...] = (
@@ -50,12 +57,19 @@ class Settings:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Settings":
         llm_data = data.get("llm", {})
+        embeddings_data = data.get("embeddings", {})
+        legacy_embedding_dimension = data.get("embedding_dimension", cls.embeddings.dimensions)
+        legacy_embedding_model = data.get("embedding_model", cls.embeddings.model)
         return cls(
             sqlite_path=Path(data.get("sqlite_path", cls.sqlite_path)),
             qdrant_url=data.get("qdrant_url", cls.qdrant_url),
             qdrant_collection=data.get("qdrant_collection", cls.qdrant_collection),
-            embedding_dimension=data.get("embedding_dimension", cls.embedding_dimension),
-            embedding_model=data.get("embedding_model", cls.embedding_model),
+            embeddings=EmbeddingSettings(
+                provider=embeddings_data.get("provider", cls.embeddings.provider),
+                model=embeddings_data.get("model", legacy_embedding_model),
+                dimensions=embeddings_data.get("dimensions", legacy_embedding_dimension),
+                batch_size=embeddings_data.get("batch_size", cls.embeddings.batch_size),
+            ),
             llm=LLMSettings(
                 enabled=llm_data.get("enabled", LLMSettings.enabled),
                 provider=llm_data.get("provider", LLMSettings.provider),
@@ -66,3 +80,11 @@ class Settings:
                 api_key=llm_data.get("api_key", LLMSettings.api_key),
             ),
         )
+
+    @property
+    def embedding_dimension(self) -> int:
+        return self.embeddings.dimensions
+
+    @property
+    def embedding_model(self) -> str:
+        return self.embeddings.model

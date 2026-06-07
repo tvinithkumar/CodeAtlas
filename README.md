@@ -144,6 +144,31 @@ BAAI/bge-small-en-v1.5
 The tests inject a deterministic hash embedder so CI does not need to download
 model files.
 
+For stronger code retrieval, configure Sentence Transformers with Jina code
+embeddings:
+
+```yaml
+embeddings:
+  provider: sentence_transformers
+  model: jinaai/jina-embeddings-v2-base-code
+  dimensions: 768
+  batch_size: 32
+```
+
+Install the optional dependency first:
+
+```bash
+pip install -e ".[embeddings]"
+```
+
+Supported embedding providers:
+
+```text
+fastembed
+sentence_transformers
+hash
+```
+
 ## Optional LLM Enrichment
 
 The LLM layer is provider-pluggable and uses LiteLLM:
