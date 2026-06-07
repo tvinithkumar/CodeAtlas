@@ -218,6 +218,39 @@ SQLite FTS
 hybrid CodeAtlas retrieval
 ```
 
+## MCP Server
+
+Install optional MCP support:
+
+```bash
+pip install -e ".[mcp]"
+```
+
+Run the server after indexing a repository:
+
+```bash
+codeatlas index /path/to/repo --no-qdrant
+codeatlas-mcp --repo /path/to/repo --sqlite-path .codeatlas/codeatlas.db
+```
+
+Exposed tools:
+
+```text
+search_code(query, top_k=5)
+get_code_window(file, line, radius=20)
+explain_symbol(symbol)
+find_usages(symbol)
+related_symbols(symbol)
+```
+
+Default token-safety limits:
+
+```text
+max_results = 5
+max_lines_per_result = 40
+max_total_chars = 12000
+```
+
 Planned next steps:
 
 ```text

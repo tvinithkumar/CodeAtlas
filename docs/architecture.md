@@ -92,6 +92,46 @@ CodeAtlas retrieval.
 codeatlas window --repo /path/to/repo --file app/config.py --line 42 --radius 20
 ```
 
+## MCP
+
+The MCP layer is intentionally compact and token-safe. The plain Python tool
+wrapper is testable without the optional MCP runtime, and `server.py` imports
+FastMCP only when the server is launched.
+
+```text
+codeatlas/mcp/
+  server.py
+  tools.py
+  schemas.py
+  limits.py
+```
+
+Exposed tools:
+
+```text
+search_code
+get_code_window
+explain_symbol
+find_usages
+related_symbols
+```
+
+Hard defaults:
+
+```text
+max_results = 5
+max_lines_per_result = 40
+max_total_chars = 12000
+```
+
+This is the integration point for measuring agent token reduction:
+
+```text
+baseline Claude/code agent tokens
+vs
+Claude/code agent + CodeAtlas MCP tokens
+```
+
 Postgres and a dedicated graph database are intentionally deferred until after the MVP
 pipeline proves useful locally.
 

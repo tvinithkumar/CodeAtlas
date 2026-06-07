@@ -18,11 +18,15 @@ dev = [
 llm = [
     "litellm>=1.50.0",
 ]
+mcp = [
+    "mcp>=1.9.0",
+]
 
 [project.scripts]
 codeatlas = "codeatlas.cli:main"
 codeatlas-eval = "evals.run_retrieval_eval:main"
 codeatlas-index = "codeatlas.indexing.repository_indexer:main"
+codeatlas-mcp = "codeatlas.mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]

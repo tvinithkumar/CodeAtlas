@@ -22,6 +22,18 @@ class GraphSearch:
             usages.extend(self.sqlite_store.get_symbol_edges(str(symbol["id"]), direction="in"))
         return usages
 
+    def related_symbols(self, symbol_query: str, limit: int = 10) -> dict[str, object] | None:
+        symbols = self.sqlite_store.find_symbols(symbol_query, limit=1)
+        if not symbols:
+            return None
+        symbol = symbols[0]
+        edges = self.sqlite_store.get_symbol_edges(str(symbol["id"]), direction="both")[:limit]
+        related_ids = {
+            str(edge["src_symbol_id"]) if edge["src_symbol_id"] != symbol["id"] else str(edge["dst_symbol_id"])
+            for edge in edges
+        }
+        return {"symbol": symbol, "related_symbol_ids": sorted(related_ids), "edges": edges}
+
     def impact_analysis(self, symbol_query: str, depth: int = 2) -> dict[str, object] | None:
         symbols = self.sqlite_store.find_symbols(symbol_query, limit=1)
         if not symbols:
@@ -58,4 +70,3 @@ class GraphSearch:
         if "config" in lowered or "timeout" in lowered or "retry" in lowered:
             return self.sqlite_store.edges_by_type("reads_config", limit=limit)
         return []
-
