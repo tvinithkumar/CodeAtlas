@@ -124,7 +124,7 @@ class RepositoryIndexer:
             enrichment = self.llm_enricher.enrich(symbol, chunk)
         except Exception:
             return base_profile
-        if not enrichment.description:
+        if enrichment.is_empty:
             return base_profile
         self.sqlite_store.upsert_llm_enrichment(chunk.id, enrichment)
         return f"{base_profile}\n{enrichment.to_profile_text()}"

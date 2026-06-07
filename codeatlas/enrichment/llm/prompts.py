@@ -1,19 +1,15 @@
 from __future__ import annotations
 
 from codeatlas.chunking.models import CodeChunk
+from codeatlas.enrichment.llm.profile_schema import PROFILE_SCHEMA_TEXT
 from codeatlas.symbols.models import Symbol
 
 
 def describe_symbol_prompt(symbol: Symbol, chunk: CodeChunk) -> str:
     return f"""You are enriching a code search index.
-Return only valid JSON with this schema:
-{{
-  "description": "one concise paragraph",
-  "tags": ["search", "tags"],
-  "inputs": ["input names or data dependencies"],
-  "outputs": ["return values or side effects"],
-  "failure_modes": ["likely failure modes"]
-}}
+Return only valid JSON. Do not wrap it in Markdown.
+Use exactly this schema:
+{PROFILE_SCHEMA_TEXT}
 
 Task: describe_symbol
 Symbol: {symbol.qualified_name}
@@ -29,7 +25,9 @@ Code:
 
 
 def summarize_function_prompt(symbol: Symbol, chunk: CodeChunk) -> str:
-    return f"""Return only valid JSON with keys description, tags, inputs, outputs, failure_modes.
+    return f"""Return only valid JSON. Do not wrap it in Markdown.
+Use exactly this schema:
+{PROFILE_SCHEMA_TEXT}
 
 Task: summarize_function
 Function: {symbol.qualified_name}
@@ -43,7 +41,9 @@ Code:
 
 
 def generate_search_tags_prompt(symbol: Symbol, chunk: CodeChunk) -> str:
-    return f"""Return only valid JSON with keys description, tags, inputs, outputs, failure_modes.
+    return f"""Return only valid JSON. Do not wrap it in Markdown.
+Use exactly this schema:
+{PROFILE_SCHEMA_TEXT}
 Focus on search tags developers might use to find this code.
 
 Task: generate_search_tags
@@ -55,4 +55,3 @@ Code:
 {chunk.content}
 ```
 """
-

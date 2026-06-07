@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import json
-import re
-
 from codeatlas.chunking.models import CodeChunk
 from codeatlas.enrichment.llm.base import LLMClient
+from codeatlas.enrichment.llm.json_parser import LLMProfileJSONParser
 from codeatlas.enrichment.llm.models import LLMEnrichment
 from codeatlas.enrichment.llm.prompts import (
     describe_symbol_prompt,
@@ -17,6 +15,7 @@ from codeatlas.symbols.models import Symbol
 class LLMEnricher:
     def __init__(self, client: LLMClient) -> None:
         self.client = client
+        self.parser = LLMProfileJSONParser()
 
     def enrich(self, symbol: Symbol, chunk: CodeChunk) -> LLMEnrichment:
         prompts = [
@@ -28,41 +27,22 @@ class LLMEnricher:
         return self._merge(enrichments)
 
     def _complete(self, prompt: str) -> LLMEnrichment:
-        raw = self.client.complete(prompt)
-        data = self._parse_json(raw)
-        return LLMEnrichment(
-            description=str(data.get("description", "")).strip(),
-            tags=self._string_list(data.get("tags", [])),
-            inputs=self._string_list(data.get("inputs", [])),
-            outputs=self._string_list(data.get("outputs", [])),
-            failure_modes=self._string_list(data.get("failure_modes", [])),
-        )
-
-    def _parse_json(self, raw: str) -> dict[str, object]:
         try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
-            match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
-            if not match:
-                return {}
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                return {}
-
-    def _string_list(self, value: object) -> list[str]:
-        if not isinstance(value, list):
-            return []
-        return [str(item).strip() for item in value if str(item).strip()]
+            raw = self.client.complete(prompt)
+        except Exception:
+            return LLMEnrichment()
+        return self.parser.parse(raw)
 
     def _merge(self, enrichments: list[LLMEnrichment]) -> LLMEnrichment:
         description = next((item.description for item in enrichments if item.description), "")
         return LLMEnrichment(
             description=description,
-            tags=self._unique(item for enrichment in enrichments for item in enrichment.tags),
+            responsibilities=self._unique(item for enrichment in enrichments for item in enrichment.responsibilities),
             inputs=self._unique(item for enrichment in enrichments for item in enrichment.inputs),
             outputs=self._unique(item for enrichment in enrichments for item in enrichment.outputs),
+            side_effects=self._unique(item for enrichment in enrichments for item in enrichment.side_effects),
             failure_modes=self._unique(item for enrichment in enrichments for item in enrichment.failure_modes),
+            search_tags=self._unique(item for enrichment in enrichments for item in enrichment.search_tags),
         )
 
     def _unique(self, values) -> list[str]:
@@ -74,4 +54,3 @@ class LLMEnricher:
             seen.add(value)
             result.append(value)
         return result
-

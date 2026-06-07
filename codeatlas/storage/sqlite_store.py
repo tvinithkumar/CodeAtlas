@@ -73,15 +73,19 @@ class SQLiteStore:
             CREATE TABLE IF NOT EXISTS llm_enrichments (
                 chunk_id TEXT PRIMARY KEY,
                 description TEXT NOT NULL,
+                responsibilities TEXT NOT NULL DEFAULT '',
                 tags TEXT NOT NULL,
                 inputs TEXT NOT NULL,
                 outputs TEXT NOT NULL,
+                side_effects TEXT NOT NULL DEFAULT '',
                 failure_modes TEXT NOT NULL
             );
             """
         )
         self._ensure_column("symbols", "id", "TEXT")
         self._ensure_column("chunks", "unit_type", "TEXT NOT NULL DEFAULT 'function_chunk'")
+        self._ensure_column("llm_enrichments", "responsibilities", "TEXT NOT NULL DEFAULT ''")
+        self._ensure_column("llm_enrichments", "side_effects", "TEXT NOT NULL DEFAULT ''")
         self.connection.commit()
 
     def _ensure_column(self, table: str, column: str, definition: str) -> None:
@@ -134,21 +138,27 @@ class SQLiteStore:
     def upsert_llm_enrichment(self, chunk_id: str, enrichment: LLMEnrichment) -> None:
         self.connection.execute(
             """
-            INSERT INTO llm_enrichments(chunk_id, description, tags, inputs, outputs, failure_modes)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO llm_enrichments(
+                chunk_id, description, responsibilities, tags, inputs, outputs, side_effects, failure_modes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(chunk_id) DO UPDATE SET
                 description = excluded.description,
+                responsibilities = excluded.responsibilities,
                 tags = excluded.tags,
                 inputs = excluded.inputs,
                 outputs = excluded.outputs,
+                side_effects = excluded.side_effects,
                 failure_modes = excluded.failure_modes
             """,
             (
                 chunk_id,
                 enrichment.description,
+                "\n".join(enrichment.responsibilities),
                 "\n".join(enrichment.tags),
                 "\n".join(enrichment.inputs),
                 "\n".join(enrichment.outputs),
+                "\n".join(enrichment.side_effects),
                 "\n".join(enrichment.failure_modes),
             ),
         )

@@ -202,6 +202,23 @@ generate_search_tags
 The generated description, tags, inputs, outputs, and failure modes are stored
 in SQLite and folded into FTS/Qdrant indexing text.
 
+LLM profile output is parsed as strict JSON:
+
+```json
+{
+  "description": "...",
+  "responsibilities": ["..."],
+  "inputs": ["..."],
+  "outputs": ["..."],
+  "side_effects": ["..."],
+  "failure_modes": ["..."],
+  "search_tags": ["..."]
+}
+```
+
+Invalid JSON, malformed Markdown, provider errors, and timeouts fall back to the
+non-LLM symbol profile.
+
 ## Retrieval Modes
 
 CodeAtlas has three retrieval modes:

@@ -18,10 +18,12 @@ class FakeLLMClient:
         return """
 {
   "description": "Builds a greeting message for a user.",
-  "tags": ["greeting", "message", "user"],
+  "responsibilities": ["format greeting"],
   "inputs": ["user"],
   "outputs": ["message"],
-  "failure_modes": ["missing user"]
+  "side_effects": [],
+  "failure_modes": ["missing user"],
+  "search_tags": ["greeting", "message", "user"]
 }
 """.strip()
 

@@ -170,3 +170,21 @@ class LLMClient(Protocol):
     def complete(self, prompt: str) -> str:
         ...
 ```
+
+LLM output is normalized through a strict profile schema:
+
+```json
+{
+  "description": "...",
+  "responsibilities": ["..."],
+  "inputs": ["..."],
+  "outputs": ["..."],
+  "side_effects": ["..."],
+  "failure_modes": ["..."],
+  "search_tags": ["..."]
+}
+```
+
+`json_parser.py` accepts raw JSON and Markdown-fenced JSON. Invalid JSON or
+provider errors produce an empty profile so indexing can continue with the
+deterministic non-LLM fallback.
