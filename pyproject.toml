@@ -1,0 +1,34 @@
+[project]
+name = "codeatlas"
+version = "0.1.0"
+description = "Semantic code indexing with symbol extraction, SQLite FTS, and Qdrant vector search."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "fastembed>=0.4.0",
+    "qdrant-client>=1.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+llm = [
+    "litellm>=1.50.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.scripts]
+codeatlas = "codeatlas.cli:main"
+codeatlas-index = "codeatlas.indexing.repository_indexer:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["codeatlas"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

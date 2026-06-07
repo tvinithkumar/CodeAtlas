@@ -1,2 +1,202 @@
 # CodeAtlas
-CodeAtlas transforms source code into a semantic knowledge graph using AST analysis, symbol extraction, and AI-generated descriptions. It indexes functions, classes, APIs, and relationships, enabling natural-language code search, architecture discovery, impact analysis, documentation generation, and AI-powered understanding of large codebases
+
+CodeAtlas transforms source code into searchable symbol-level knowledge using AST
+analysis, symbol extraction, code chunking, generated descriptions, ripgrep,
+SQLite FTS, and Qdrant vector search.
+
+The MVP is intentionally local-first:
+
+```text
+RepositoryIndexer
+  -> RepositoryLoader
+  -> PythonParser
+  -> SymbolExtractor
+  -> ASTChunker
+  -> SymbolProfiler
+  -> HashEmbeddingGenerator
+  -> SQLiteStore + QdrantVectorStore
+  -> Ripgrep + FTS + Vector
+  -> HybridSearch
+```
+
+## MVP Storage
+
+CodeAtlas uses:
+
+```text
+SQLite
+  -> files, symbols, chunks, generated profiles, indexing metadata
+
+SQLite FTS5
+  -> exact keyword search over symbol names, paths, profiles, and code chunks
+
+Qdrant
+  -> vector search over generated profiles and code chunks
+
+ripgrep
+  -> zero-embedding exact retrieval over the working tree
+```
+
+Postgres is deliberately deferred until the local MVP pipeline is useful.
+
+The graph layer is stored in SQLite for now:
+
+```sql
+symbol_edges(
+  src_symbol_id,
+  dst_symbol_id,
+  edge_type,
+  file_path,
+  confidence
+)
+```
+
+Current edge types include:
+
+```text
+calls
+imports
+inherits
+reads_config
+emits_metric
+logs
+queries_table
+```
+
+## Quick Start
+
+Install the package in editable mode:
+
+```bash
+pip install -e ".[dev]"
+```
+
+Install optional LLM support:
+
+```bash
+pip install -e ".[llm]"
+```
+
+Index a repository with SQLite only:
+
+```bash
+codeatlas index /path/to/repo --no-qdrant
+```
+
+Run offline LLM enrichment with Ollama and LiteLLM:
+
+```bash
+ollama pull qwen2.5-coder:7b
+codeatlas index /path/to/repo --no-qdrant --with-llm
+```
+
+Or use a YAML config:
+
+```yaml
+llm:
+  enabled: true
+  provider: ollama
+  model: qwen2.5-coder:7b
+  temperature: 0.1
+```
+
+```bash
+codeatlas --config codeatlas.yml index /path/to/repo --no-qdrant
+```
+
+Index with Qdrant enabled after starting a local Qdrant server:
+
+```bash
+docker run -p 6333:6333 qdrant/qdrant
+codeatlas index /path/to/repo
+```
+
+Search and inspect graph relationships:
+
+```bash
+codeatlas search "where is retry logic configured" --no-vectors
+codeatlas search "retryBackoffMs" --repo /path/to/repo --no-vectors
+codeatlas explain retry_delay
+codeatlas find-usage load_user
+codeatlas impact REQUEST_TIMEOUT_MS
+```
+
+By default, the SQLite database is written to:
+
+```text
+.codeatlas/codeatlas.db
+```
+
+## Current Scope
+
+The first implementation supports Python source files. It extracts classes,
+functions, async functions, symbol relationships, symbol chunks, and file
+summaries. It stores metadata in SQLite, indexes lexical content with FTS5,
+and can upsert vectors to Qdrant.
+
+Embeddings default to the local FastEmbed model:
+
+```text
+BAAI/bge-small-en-v1.5
+```
+
+The tests inject a deterministic hash embedder so CI does not need to download
+model files.
+
+## Optional LLM Enrichment
+
+The LLM layer is provider-pluggable and uses LiteLLM:
+
+```text
+LiteLLM -> Ollama, OpenAI, Anthropic, Gemini, or another LiteLLM provider
+```
+
+The first supported local default is:
+
+```text
+ollama/qwen2.5-coder:7b
+```
+
+LLM enrichment runs only during indexing. Search does not call an LLM yet.
+
+Current LLM tasks:
+
+```text
+describe_symbol
+summarize_function
+generate_search_tags
+```
+
+The generated description, tags, inputs, outputs, and failure modes are stored
+in SQLite and folded into FTS/Qdrant indexing text.
+
+## Retrieval Modes
+
+CodeAtlas has three retrieval modes:
+
+```text
+Ripgrep retrieval
+  -> exact code search for error messages, metric names, config keys, env vars,
+     API routes, class names, function names, and SQL table names
+
+Symbol/FTS retrieval
+  -> indexed search over symbol profiles, generated tags, file summaries, and chunks
+
+Semantic retrieval
+  -> Qdrant vector search over enriched code profiles and chunks
+```
+
+Hybrid search routes exact-looking queries toward ripgrep, then fuses ripgrep,
+FTS, and vector results with Reciprocal Rank Fusion. Exact code-like queries
+such as `retryBackoffMs`, `alert_grouping_latency`, `ConnectionRefusedError`,
+or `/api/v2/tickets` get a heavier ripgrep weight.
+
+Planned next steps:
+
+```text
+1. Add Tree-sitter parsers for JavaScript, TypeScript, Go, and Java.
+2. Expand Python relationship extraction for attribute resolution and cross-file imports.
+3. Add incremental indexing.
+4. Add file summaries from a real local or provider LLM.
+5. Introduce Postgres after the MVP data model stabilizes.
+```

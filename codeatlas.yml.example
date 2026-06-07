@@ -1,0 +1,6 @@
+llm:
+  enabled: true
+  provider: ollama
+  model: qwen2.5-coder:7b
+  temperature: 0.1
+

@@ -1,0 +1,2 @@
+"""Optional LLM enrichment layer."""
+
