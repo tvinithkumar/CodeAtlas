@@ -158,6 +158,37 @@ The first supported local default is:
 ollama/qwen2.5-coder:7b
 ```
 
+LM Studio is supported through its OpenAI-compatible local server:
+
+```yaml
+llm:
+  enabled: true
+  provider: lmstudio
+  model: qwen3-coder-30b-a3b-instruct
+  temperature: 0.1
+  max_tokens: 512
+  base_url: http://localhost:1234/v1
+  api_key: lm-studio
+```
+
+Check the server with:
+
+```bash
+curl http://localhost:1234/v1/models
+```
+
+Index with LM Studio directly:
+
+```bash
+codeatlas index examples/benchmark_repo \
+  --no-qdrant \
+  --llm-enabled \
+  --llm-provider lmstudio \
+  --llm-model qwen3-coder-30b-a3b-instruct \
+  --llm-base-url http://localhost:1234/v1 \
+  --llm-max-tokens 512
+```
+
 LLM enrichment runs only during indexing. Search does not call an LLM yet.
 
 Current LLM tasks:

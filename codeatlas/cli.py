@@ -24,6 +24,13 @@ def main() -> None:
     index_parser.add_argument("repo", type=Path)
     index_parser.add_argument("--no-qdrant", action="store_true", help="Skip Qdrant vector upserts")
     index_parser.add_argument("--with-llm", action="store_true", help="Enable optional offline LLM enrichment")
+    index_parser.add_argument("--llm-enabled", action="store_true", help="Enable optional offline LLM enrichment")
+    index_parser.add_argument("--llm-provider", choices=["ollama", "lmstudio"], help="LLM provider")
+    index_parser.add_argument("--llm-model", help="LLM model name")
+    index_parser.add_argument("--llm-base-url", help="OpenAI-compatible LLM base URL")
+    index_parser.add_argument("--llm-api-key", help="OpenAI-compatible LLM API key")
+    index_parser.add_argument("--llm-temperature", type=float, help="LLM temperature")
+    index_parser.add_argument("--llm-max-tokens", type=int, help="LLM max output tokens")
 
     search_parser = subparsers.add_parser("search", help="Search indexed code")
     search_parser.add_argument("query")
@@ -51,22 +58,7 @@ def main() -> None:
     settings = Settings.from_yaml(args.config) if args.config else Settings(sqlite_path=args.sqlite_path)
 
     if args.command == "index":
-        if args.with_llm and not settings.llm.enabled:
-            settings = Settings.from_dict(
-                {
-                    "sqlite_path": settings.sqlite_path,
-                    "qdrant_url": settings.qdrant_url,
-                    "qdrant_collection": settings.qdrant_collection,
-                    "embedding_dimension": settings.embedding_dimension,
-                    "embedding_model": settings.embedding_model,
-                    "llm": {
-                        "enabled": True,
-                        "provider": settings.llm.provider,
-                        "model": settings.llm.model,
-                        "temperature": settings.llm.temperature,
-                    },
-                }
-            )
+        settings = _settings_with_llm_overrides(settings, args)
         result = RepositoryIndexer(settings=settings, enable_qdrant=not args.no_qdrant).index(args.repo)
         print(json.dumps(result, indent=2))
         return
@@ -103,6 +95,35 @@ def main() -> None:
 
     if args.command == "impact":
         print(json.dumps(graph_search.impact_analysis(args.symbol, depth=args.depth), indent=2))
+
+
+def _settings_with_llm_overrides(settings: Settings, args: argparse.Namespace) -> Settings:
+    enabled = settings.llm.enabled or args.with_llm or args.llm_enabled
+    provider = args.llm_provider or settings.llm.provider
+    model = args.llm_model or settings.llm.model
+    temperature = args.llm_temperature if args.llm_temperature is not None else settings.llm.temperature
+    max_tokens = args.llm_max_tokens if args.llm_max_tokens is not None else settings.llm.max_tokens
+    base_url = args.llm_base_url or settings.llm.base_url
+    api_key = args.llm_api_key or settings.llm.api_key
+
+    return Settings.from_dict(
+        {
+            "sqlite_path": settings.sqlite_path,
+            "qdrant_url": settings.qdrant_url,
+            "qdrant_collection": settings.qdrant_collection,
+            "embedding_dimension": settings.embedding_dimension,
+            "embedding_model": settings.embedding_model,
+            "llm": {
+                "enabled": enabled,
+                "provider": provider,
+                "model": model,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "base_url": base_url,
+                "api_key": api_key,
+            },
+        }
+    )
 
 
 if __name__ == "__main__":

@@ -11,6 +11,9 @@ class LLMSettings:
     provider: str = "ollama"
     model: str = "qwen2.5-coder:7b"
     temperature: float = 0.1
+    max_tokens: int = 512
+    base_url: str | None = None
+    api_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -58,5 +61,8 @@ class Settings:
                 provider=llm_data.get("provider", LLMSettings.provider),
                 model=llm_data.get("model", LLMSettings.model),
                 temperature=llm_data.get("temperature", LLMSettings.temperature),
+                max_tokens=llm_data.get("max_tokens", LLMSettings.max_tokens),
+                base_url=llm_data.get("base_url", LLMSettings.base_url),
+                api_key=llm_data.get("api_key", LLMSettings.api_key),
             ),
         )

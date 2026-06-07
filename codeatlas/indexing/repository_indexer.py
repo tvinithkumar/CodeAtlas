@@ -9,6 +9,7 @@ from codeatlas.chunking.models import CodeChunk
 from codeatlas.common.config import Settings
 from codeatlas.enrichment.embedding_generator import EmbeddingGenerator, LocalEmbeddingGenerator
 from codeatlas.enrichment.llm.enricher import LLMEnricher
+from codeatlas.enrichment.llm.lmstudio_client import LMStudioClient
 from codeatlas.enrichment.llm.litellm_client import LiteLLMClient
 from codeatlas.enrichment.symbol_profiler import SymbolProfiler
 from codeatlas.ingestion.repository_loader import RepositoryLoader
@@ -111,6 +112,8 @@ class RepositoryIndexer:
     def _build_llm_enricher(self) -> LLMEnricher | None:
         if not self.settings.llm.enabled:
             return None
+        if self.settings.llm.provider == "lmstudio":
+            return LLMEnricher(LMStudioClient(self.settings.llm))
         return LLMEnricher(LiteLLMClient(self.settings.llm))
 
     def _profile_symbol(self, symbol: Symbol, chunk: CodeChunk) -> str:
@@ -165,27 +168,48 @@ def main() -> None:
     parser.add_argument("--config", type=Path, help="YAML config file")
     parser.add_argument("--no-qdrant", action="store_true", help="Skip Qdrant vector upserts")
     parser.add_argument("--with-llm", action="store_true", help="Enable optional offline LLM enrichment")
+    parser.add_argument("--llm-enabled", action="store_true", help="Enable optional offline LLM enrichment")
+    parser.add_argument("--llm-provider", choices=["ollama", "lmstudio"], help="LLM provider")
+    parser.add_argument("--llm-model", help="LLM model name")
+    parser.add_argument("--llm-base-url", help="OpenAI-compatible LLM base URL")
+    parser.add_argument("--llm-api-key", help="OpenAI-compatible LLM API key")
+    parser.add_argument("--llm-temperature", type=float, help="LLM temperature")
+    parser.add_argument("--llm-max-tokens", type=int, help="LLM max output tokens")
     args = parser.parse_args()
 
     settings = Settings.from_yaml(args.config) if args.config else Settings(sqlite_path=args.sqlite_path)
-    if args.with_llm and not settings.llm.enabled:
-        settings = Settings.from_dict(
-            {
-                "sqlite_path": settings.sqlite_path,
-                "qdrant_url": settings.qdrant_url,
-                "qdrant_collection": settings.qdrant_collection,
-                "embedding_dimension": settings.embedding_dimension,
-                "embedding_model": settings.embedding_model,
-                "llm": {
-                    "enabled": True,
-                    "provider": settings.llm.provider,
-                    "model": settings.llm.model,
-                    "temperature": settings.llm.temperature,
-                },
-            }
-        )
+    settings = _settings_with_llm_overrides(settings, args)
     result = RepositoryIndexer(settings=settings, enable_qdrant=not args.no_qdrant).index(args.repo)
     print(result)
+
+
+def _settings_with_llm_overrides(settings: Settings, args: argparse.Namespace) -> Settings:
+    enabled = settings.llm.enabled or args.with_llm or args.llm_enabled
+    provider = args.llm_provider or settings.llm.provider
+    model = args.llm_model or settings.llm.model
+    temperature = args.llm_temperature if args.llm_temperature is not None else settings.llm.temperature
+    max_tokens = args.llm_max_tokens if args.llm_max_tokens is not None else settings.llm.max_tokens
+    base_url = args.llm_base_url or settings.llm.base_url
+    api_key = args.llm_api_key or settings.llm.api_key
+
+    return Settings.from_dict(
+        {
+            "sqlite_path": settings.sqlite_path,
+            "qdrant_url": settings.qdrant_url,
+            "qdrant_collection": settings.qdrant_collection,
+            "embedding_dimension": settings.embedding_dimension,
+            "embedding_model": settings.embedding_model,
+            "llm": {
+                "enabled": enabled,
+                "provider": provider,
+                "model": model,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "base_url": base_url,
+                "api_key": api_key,
+            },
+        }
+    )
 
 
 if __name__ == "__main__":

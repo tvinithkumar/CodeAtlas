@@ -154,6 +154,15 @@ model: qwen2.5-coder:7b
 temperature: 0.1
 ```
 
+LM Studio uses the OpenAI-compatible LiteLLM route:
+
+```text
+provider: lmstudio
+model: qwen3-coder-30b-a3b-instruct
+base_url: http://localhost:1234/v1
+max_tokens: 512
+```
+
 The minimal interface is:
 
 ```python
