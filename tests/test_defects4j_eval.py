@@ -7,7 +7,7 @@ from codeatlas.embedding.hash_provider import HashEmbeddingProvider
 from codeatlas.indexing.repository_indexer import RepositoryIndexer
 from codeatlas.storage.sqlite_store import SQLiteStore
 from evals.defects4j.benchmark import group_cases_by_bug, parse_bug_id, settings_for_bug
-from evals.defects4j.run_fault_localization_eval import evaluate_localization_case
+from evals.defects4j.run_fault_localization_eval import check_qdrant_available, evaluate_localization_case
 
 
 def test_defects4j_benchmark_groups_cases_and_parses_bug_ids() -> None:
@@ -36,6 +36,17 @@ def test_defects4j_benchmark_qdrant_collection_suffixes_only_when_indexing(tmp_p
     Args.reuse_index = True
     settings = settings_for_bug(Args, tmp_path / "Lang_1b.db", "Lang_1b")
     assert settings.qdrant_collection == "codeatlas_chunks"
+
+
+def test_qdrant_preflight_reports_clear_error() -> None:
+    settings = Settings.from_dict({"qdrant_url": "http://127.0.0.1:1"})
+
+    try:
+        check_qdrant_available(settings)
+    except RuntimeError as exc:
+        assert "Qdrant is not reachable" in str(exc)
+    else:
+        raise AssertionError("Expected Qdrant preflight to fail")
 
 
 def test_fault_localization_eval_scores_expected_file_and_methods(tmp_path: Path) -> None:

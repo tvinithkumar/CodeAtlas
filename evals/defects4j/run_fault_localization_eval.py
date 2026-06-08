@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -26,18 +27,23 @@ def main() -> None:
     parser.add_argument("--config", type=Path, help="CodeAtlas config for embeddings/Qdrant settings")
     parser.add_argument("--reuse-index", action="store_true", help="Use an existing SQLite index")
     parser.add_argument("--with-vectors", action="store_true", help="Include Qdrant vector retrieval")
+    parser.add_argument("--allow-vector-errors", action="store_true", help="Continue if Qdrant vector retrieval fails")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--window-radius", type=int, default=12)
     args = parser.parse_args()
 
-    if args.sqlite_path is None:
-        with TemporaryDirectory() as tmpdir:
-            sqlite_path = Path(tmpdir) / "defects4j-localization.db"
-            result = run_eval(args, sqlite_path)
-            print(json.dumps(result, indent=2))
-        return
+    try:
+        if args.sqlite_path is None:
+            with TemporaryDirectory() as tmpdir:
+                sqlite_path = Path(tmpdir) / "defects4j-localization.db"
+                result = run_eval(args, sqlite_path)
+                print(json.dumps(result, indent=2))
+            return
 
-    result = run_eval(args, args.sqlite_path)
+        result = run_eval(args, args.sqlite_path)
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
     print(json.dumps(result, indent=2))
 
 
@@ -68,6 +74,8 @@ def run_eval(args: argparse.Namespace, sqlite_path: Path) -> dict[str, Any]:
         )
 
     embedding_provider = build_embedding_provider(settings.embeddings) if args.with_vectors else HashEmbeddingProvider()
+    if args.with_vectors and not args.allow_vector_errors:
+        check_qdrant_available(settings)
     if not args.reuse_index:
         RepositoryIndexer(
             settings=settings,
@@ -155,6 +163,19 @@ def evaluate_localization_case(
         "search_hits": [_hit_summary(hit) for hit in hits[:5]],
         "impact": _impact_summary(impact),
     }
+
+
+def check_qdrant_available(settings: Settings) -> None:
+    from codeatlas.storage.vector_store import QdrantVectorStore
+
+    try:
+        QdrantVectorStore(settings).check_available()
+    except Exception as exc:
+        raise RuntimeError(
+            "Qdrant is not reachable for a vector benchmark. Start Qdrant on "
+            f"{settings.qdrant_url}, rerun without --with-vectors, or pass "
+            "--allow-vector-errors to record fallback metrics."
+        ) from exc
 
 
 def recall_at_k(ranked_items: list[str], expected: list[str], k: int) -> float:

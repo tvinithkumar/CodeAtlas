@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from codeatlas.storage.sqlite_store import SQLiteStore
 from evals.defects4j.run_fault_localization_eval import (
     _repo_tokens,
     _summary,
+    check_qdrant_available,
     evaluate_localization_case,
 )
 
@@ -29,13 +31,18 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("evals/defects4j/results.json"))
     parser.add_argument("--config", type=Path, help="CodeAtlas config for embedding/Qdrant settings")
     parser.add_argument("--with-vectors", action="store_true", help="Index and query with Qdrant vectors")
+    parser.add_argument("--allow-vector-errors", action="store_true", help="Continue if Qdrant vector retrieval fails")
     parser.add_argument("--reuse-checkouts", action="store_true")
     parser.add_argument("--reuse-index", action="store_true")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--window-radius", type=int, default=12)
     args = parser.parse_args()
 
-    result = run_benchmark(args)
+    try:
+        result = run_benchmark(args)
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(json.dumps(result, indent=2))
@@ -62,6 +69,8 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
 
         settings = settings_for_bug(args, sqlite_path, bug_id)
         embedding_provider = build_embedding_provider(settings.embeddings) if args.with_vectors else HashEmbeddingProvider()
+        if args.with_vectors and not args.allow_vector_errors:
+            check_qdrant_available(settings)
         if not args.reuse_index:
             RepositoryIndexer(
                 settings=settings,

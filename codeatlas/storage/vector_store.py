@@ -27,6 +27,9 @@ class QdrantVectorStore:
             vectors_config=VectorParams(size=self.settings.embeddings.dimensions, distance=Distance.COSINE),
         )
 
+    def check_available(self) -> None:
+        self.client.get_collections()
+
     def upsert(self, points: list[tuple[str, list[float], dict[str, object]]]) -> None:
         if not points:
             return
