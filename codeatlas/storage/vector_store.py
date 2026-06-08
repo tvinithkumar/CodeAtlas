@@ -61,6 +61,13 @@ class QdrantVectorStore:
                 "symbol": hit.payload.get("symbol", ""),
                 "line_start": hit.payload.get("line_start"),
                 "line_end": hit.payload.get("line_end"),
+                "unit_type": hit.payload.get("unit_type", ""),
+                "language": hit.payload.get("language", ""),
+                "profile": hit.payload.get("profile", ""),
+                "embedding_text": hit.payload.get("embedding_text", ""),
+                "graph_context": hit.payload.get("graph_context", []),
+                "symbol_count": hit.payload.get("symbol_count"),
+                "defined_symbols": hit.payload.get("defined_symbols", []),
                 "content": hit.payload.get("content", ""),
             }
             for hit in hits

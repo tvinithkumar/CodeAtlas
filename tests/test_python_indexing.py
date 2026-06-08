@@ -28,6 +28,14 @@ class FakeLLMClient:
 """.strip()
 
 
+class CapturingVectorStore:
+    def __init__(self) -> None:
+        self.points = []
+
+    def upsert(self, points):
+        self.points.extend(points)
+
+
 def test_indexes_python_symbols_and_searches(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -59,6 +67,42 @@ def build_message(user: str) -> str:
     hits = search.search("build_message", include_vectors=False)
     assert hits
     assert any(hit.symbol == "build_message" for hit in hits)
+
+
+def test_qdrant_payloads_include_profiles_and_graph_context(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "service.py").write_text(
+        """
+RETRY_BACKOFF_MS = 250
+
+def retry_delay(attempt: int) -> int:
+    return RETRY_BACKOFF_MS * attempt
+""".strip(),
+        encoding="utf-8",
+    )
+
+    settings = Settings(sqlite_path=tmp_path / "codeatlas.db")
+    vector_store = CapturingVectorStore()
+    indexer = RepositoryIndexer(
+        settings=settings,
+        enable_qdrant=False,
+        embedding_generator=HashEmbeddingGenerator(),
+    )
+    indexer.vector_store = vector_store
+    indexer.index(repo)
+
+    payloads = [payload for _, _, payload in vector_store.points]
+    retry_payload = next(payload for payload in payloads if payload["symbol"] == "retry_delay")
+    file_payload = next(payload for payload in payloads if payload["unit_type"] == "file_summary")
+
+    assert retry_payload["language"] == "python"
+    assert retry_payload["profile"]
+    assert retry_payload["embedding_text"].startswith(retry_payload["profile"])
+    assert retry_payload["graph_context"]
+    assert retry_payload["graph_context"][0]["edge_type"] == "reads_config"
+    assert file_payload["symbol_count"] == 2
+    assert "retry_delay" in file_payload["defined_symbols"]
 
 
 def test_graph_search_finds_config_metrics_and_impact(tmp_path: Path) -> None:

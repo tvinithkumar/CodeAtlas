@@ -54,6 +54,7 @@ class RepositoryIndexer:
             chunks.append(file_summary)
             chunks_by_symbol = {chunk.symbol_qualified_name: chunk for chunk in chunks}
             relationships = self._resolve_relationships(self.relationship_extractor.extract(source_file, symbols), symbols)
+            edges_by_source = self._edges_by_source(relationships)
 
             for symbol in symbols:
                 self.sqlite_store.upsert_symbol(symbol)
@@ -69,14 +70,7 @@ class RepositoryIndexer:
                         (
                             chunk.id,
                             self.embedding_generator.embed(f"{profile}\n{chunk.content}"),
-                            {
-                                "unit_type": chunk.unit_type,
-                                "file_path": chunk.file_path,
-                                "symbol": chunk.symbol_qualified_name,
-                                "line_start": chunk.start_line,
-                                "line_end": chunk.end_line,
-                                "content": chunk.content,
-                            },
+                            self._vector_payload(chunk, profile, edges_by_source.get(symbol.id, [])),
                         )
                     )
 
@@ -88,14 +82,7 @@ class RepositoryIndexer:
                     (
                         file_summary.id,
                         self.embedding_generator.embed(f"{file_profile}\n{file_summary.content}"),
-                        {
-                            "unit_type": file_summary.unit_type,
-                            "file_path": file_summary.file_path,
-                            "symbol": file_summary.symbol_qualified_name,
-                            "line_start": file_summary.start_line,
-                            "line_end": file_summary.end_line,
-                            "content": file_summary.content,
-                        },
+                        self._vector_payload(file_summary, file_profile, symbols=symbols),
                     )
                 )
             self.sqlite_store.replace_edges(source_file.relative_path, relationships)
@@ -157,6 +144,47 @@ class RepositoryIndexer:
                 )
             )
         return resolved
+
+    def _edges_by_source(self, relationships: list[Relationship]) -> dict[str, list[Relationship]]:
+        edges: dict[str, list[Relationship]] = {}
+        for relationship in relationships:
+            edges.setdefault(relationship.source, []).append(relationship)
+        return edges
+
+    def _vector_payload(
+        self,
+        chunk: CodeChunk,
+        profile: str,
+        graph_edges: list[Relationship] | None = None,
+        symbols: list[Symbol] | None = None,
+    ) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "unit_type": chunk.unit_type,
+            "file_path": chunk.file_path,
+            "language": chunk.language,
+            "symbol": chunk.symbol_qualified_name,
+            "line_start": chunk.start_line,
+            "line_end": chunk.end_line,
+            "content": chunk.content,
+            "profile": profile,
+            "embedding_text": f"{profile}\n{chunk.content}",
+        }
+        if graph_edges:
+            payload["graph_context"] = [
+                {
+                    "edge_type": edge.kind,
+                    "target": edge.target,
+                    "file_path": edge.file_path,
+                    "line_start": edge.line_start,
+                    "line_end": edge.line_end,
+                    "confidence": edge.confidence,
+                }
+                for edge in graph_edges[:20]
+            ]
+        if symbols is not None:
+            payload["symbol_count"] = len(symbols)
+            payload["defined_symbols"] = [symbol.qualified_name for symbol in symbols[:100]]
+        return payload
 
     def _file_summary_chunk(self, relative_path: str, language: str, symbols: list[Symbol]) -> CodeChunk:
         content = self._file_profile(relative_path, symbols)
