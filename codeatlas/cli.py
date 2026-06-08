@@ -6,6 +6,7 @@ from pathlib import Path
 
 from codeatlas.common.config import Settings
 from codeatlas.embedding.factory import build_embedding_provider
+from codeatlas.graph.impact_analyzer import ImpactAnalyzer
 from codeatlas.indexing.repository_indexer import RepositoryIndexer
 from codeatlas.retrieval.code_window import CodeWindowFetcher
 from codeatlas.retrieval.graph_search import GraphSearch
@@ -56,6 +57,9 @@ def main() -> None:
     impact_parser = subparsers.add_parser("impact", help="Trace incoming impact for a symbol")
     impact_parser.add_argument("symbol")
     impact_parser.add_argument("--depth", type=int, default=2)
+    impact_parser.add_argument("--limit", type=int, default=10)
+    impact_parser.add_argument("--repo", type=Path, help="Repository path for code windows")
+    impact_parser.add_argument("--window-radius", type=int, default=12)
 
     window_parser = subparsers.add_parser("window", help="Fetch a bounded code window")
     window_parser.add_argument("--repo", type=Path, required=True)
@@ -107,7 +111,14 @@ def main() -> None:
         return
 
     if args.command == "impact":
-        print(json.dumps(graph_search.impact_analysis(args.symbol, depth=args.depth), indent=2))
+        impact = ImpactAnalyzer(sqlite_store).analyze(
+            args.symbol,
+            repo_path=args.repo,
+            depth=args.depth,
+            limit=args.limit,
+            window_radius=args.window_radius,
+        )
+        print(json.dumps(impact, indent=2))
 
 
 def _settings_with_llm_overrides(settings: Settings, args: argparse.Namespace) -> Settings:
