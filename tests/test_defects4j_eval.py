@@ -6,7 +6,22 @@ from codeatlas.common.config import Settings
 from codeatlas.embedding.hash_provider import HashEmbeddingProvider
 from codeatlas.indexing.repository_indexer import RepositoryIndexer
 from codeatlas.storage.sqlite_store import SQLiteStore
+from evals.defects4j.benchmark import group_cases_by_bug, parse_bug_id
 from evals.defects4j.run_fault_localization_eval import evaluate_localization_case
+
+
+def test_defects4j_benchmark_groups_cases_and_parses_bug_ids() -> None:
+    assert parse_bug_id("Lang_1b") == ("Lang", "1b")
+    grouped = group_cases_by_bug(
+        [
+            {"bug_id": "Lang_1b", "query": "a"},
+            {"bug_id": "Lang_1b", "query": "b"},
+            {"bug_id": "Math_2b", "query": "c"},
+        ]
+    )
+
+    assert len(grouped["Lang_1b"]) == 2
+    assert len(grouped["Math_2b"]) == 1
 
 
 def test_fault_localization_eval_scores_expected_file_and_methods(tmp_path: Path) -> None:
