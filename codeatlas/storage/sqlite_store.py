@@ -66,6 +66,8 @@ class SQLiteStore:
                 dst_symbol_id TEXT NOT NULL,
                 edge_type TEXT NOT NULL,
                 file_path TEXT NOT NULL,
+                line_start INTEGER,
+                line_end INTEGER,
                 confidence REAL NOT NULL DEFAULT 1.0,
                 PRIMARY KEY (src_symbol_id, dst_symbol_id, edge_type, file_path)
             );
@@ -84,6 +86,8 @@ class SQLiteStore:
         )
         self._ensure_column("symbols", "id", "TEXT")
         self._ensure_column("chunks", "unit_type", "TEXT NOT NULL DEFAULT 'function_chunk'")
+        self._ensure_column("symbol_edges", "line_start", "INTEGER")
+        self._ensure_column("symbol_edges", "line_end", "INTEGER")
         self._ensure_column("llm_enrichments", "responsibilities", "TEXT NOT NULL DEFAULT ''")
         self._ensure_column("llm_enrichments", "side_effects", "TEXT NOT NULL DEFAULT ''")
         self.connection.commit()
@@ -206,12 +210,24 @@ class SQLiteStore:
         for edge in edges:
             self.connection.execute(
                 """
-                INSERT INTO symbol_edges(src_symbol_id, dst_symbol_id, edge_type, file_path, confidence)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO symbol_edges(
+                    src_symbol_id, dst_symbol_id, edge_type, file_path, line_start, line_end, confidence
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(src_symbol_id, dst_symbol_id, edge_type, file_path) DO UPDATE SET
+                    line_start = excluded.line_start,
+                    line_end = excluded.line_end,
                     confidence = excluded.confidence
                 """,
-                (edge.source, edge.target, edge.kind, edge.file_path, edge.confidence),
+                (
+                    edge.source,
+                    edge.target,
+                    edge.kind,
+                    edge.file_path,
+                    edge.line_start,
+                    edge.line_end,
+                    edge.confidence,
+                ),
             )
 
     def commit(self) -> None:
@@ -273,7 +289,7 @@ class SQLiteStore:
         params: tuple[str, ...] = (symbol_id, symbol_id) if direction == "both" else (symbol_id,)
         rows = self.connection.execute(
             f"""
-            SELECT src_symbol_id, dst_symbol_id, edge_type, file_path, confidence
+            SELECT src_symbol_id, dst_symbol_id, edge_type, file_path, line_start, line_end, confidence
             FROM symbol_edges
             WHERE {predicate}
             ORDER BY confidence DESC, edge_type
@@ -285,7 +301,7 @@ class SQLiteStore:
     def edges_by_type(self, edge_type: str, limit: int = 20) -> list[dict[str, object]]:
         rows = self.connection.execute(
             """
-            SELECT src_symbol_id, dst_symbol_id, edge_type, file_path, confidence
+            SELECT src_symbol_id, dst_symbol_id, edge_type, file_path, line_start, line_end, confidence
             FROM symbol_edges
             WHERE edge_type = ?
             ORDER BY confidence DESC

@@ -48,6 +48,11 @@ def main() -> None:
     usage_parser = subparsers.add_parser("find-usage", help="Find incoming references to a symbol")
     usage_parser.add_argument("symbol")
 
+    related_parser = subparsers.add_parser("related", help="Find symbols related by graph edges")
+    related_parser.add_argument("symbol")
+    related_parser.add_argument("--limit", type=int, default=10)
+    related_parser.add_argument("--repo", type=Path, help="Accepted for CLI symmetry; graph search uses the index")
+
     impact_parser = subparsers.add_parser("impact", help="Trace incoming impact for a symbol")
     impact_parser.add_argument("symbol")
     impact_parser.add_argument("--depth", type=int, default=2)
@@ -95,6 +100,10 @@ def main() -> None:
 
     if args.command == "find-usage":
         print(json.dumps(graph_search.find_usage(args.symbol), indent=2))
+        return
+
+    if args.command == "related":
+        print(json.dumps(graph_search.related_symbols(args.symbol, limit=args.limit), indent=2))
         return
 
     if args.command == "impact":

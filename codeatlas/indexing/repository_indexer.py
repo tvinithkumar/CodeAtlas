@@ -145,7 +145,17 @@ class RepositoryIndexer:
                 or symbol_ids_by_name.get(edge.target)
                 or edge.target
             )
-            resolved.append(Relationship(source, target, edge.kind, edge.file_path, edge.confidence))
+            resolved.append(
+                Relationship(
+                    source,
+                    target,
+                    edge.kind,
+                    edge.file_path,
+                    edge.confidence,
+                    edge.line_start,
+                    edge.line_end,
+                )
+            )
         return resolved
 
     def _file_summary_chunk(self, relative_path: str, language: str, symbols: list[Symbol]) -> CodeChunk:

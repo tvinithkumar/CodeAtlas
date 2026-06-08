@@ -27,3 +27,5 @@ class Relationship:
     kind: str
     file_path: str
     confidence: float = 1.0
+    line_start: int | None = None
+    line_end: int | None = None
