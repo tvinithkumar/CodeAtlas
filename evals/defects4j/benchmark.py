@@ -92,6 +92,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
                 "version": version,
                 "repo": str(checkout_dir),
                 "sqlite_path": str(sqlite_path),
+                "qdrant_collection": settings.qdrant_collection if args.with_vectors else None,
                 "index_counts": index_counts(sqlite_store),
                 "summary": _summary([case["metrics"] for case in case_results]),
                 "cases": case_results,
@@ -155,7 +156,7 @@ def checkout_defects4j_bug(
 def settings_for_bug(args: argparse.Namespace, sqlite_path: Path, bug_id: str) -> Settings:
     base = Settings.from_yaml(args.config) if args.config else Settings(sqlite_path=sqlite_path)
     qdrant_collection = base.qdrant_collection
-    if args.with_vectors:
+    if args.with_vectors and not args.reuse_index:
         qdrant_collection = f"{base.qdrant_collection}_{bug_id.lower()}"
     return Settings.from_dict(
         {

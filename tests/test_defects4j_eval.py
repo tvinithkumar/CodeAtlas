@@ -6,7 +6,7 @@ from codeatlas.common.config import Settings
 from codeatlas.embedding.hash_provider import HashEmbeddingProvider
 from codeatlas.indexing.repository_indexer import RepositoryIndexer
 from codeatlas.storage.sqlite_store import SQLiteStore
-from evals.defects4j.benchmark import group_cases_by_bug, parse_bug_id
+from evals.defects4j.benchmark import group_cases_by_bug, parse_bug_id, settings_for_bug
 from evals.defects4j.run_fault_localization_eval import evaluate_localization_case
 
 
@@ -22,6 +22,20 @@ def test_defects4j_benchmark_groups_cases_and_parses_bug_ids() -> None:
 
     assert len(grouped["Lang_1b"]) == 2
     assert len(grouped["Math_2b"]) == 1
+
+
+def test_defects4j_benchmark_qdrant_collection_suffixes_only_when_indexing(tmp_path: Path) -> None:
+    class Args:
+        config = None
+        with_vectors = True
+        reuse_index = False
+
+    settings = settings_for_bug(Args, tmp_path / "Lang_1b.db", "Lang_1b")
+    assert settings.qdrant_collection == "codeatlas_chunks_lang_1b"
+
+    Args.reuse_index = True
+    settings = settings_for_bug(Args, tmp_path / "Lang_1b.db", "Lang_1b")
+    assert settings.qdrant_collection == "codeatlas_chunks"
 
 
 def test_fault_localization_eval_scores_expected_file_and_methods(tmp_path: Path) -> None:
@@ -75,3 +89,5 @@ public class NumberUtils {
     assert result["metrics"]["method_recall_at_10"] == 1.0
     assert result["metrics"]["mrr"] > 0.0
     assert result["metrics"]["context_compression_ratio"] > 1.0
+    assert result["retrieval_method_counts"]
+    assert result["vector_hit_count"] == 0

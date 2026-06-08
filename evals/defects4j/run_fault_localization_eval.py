@@ -144,6 +144,8 @@ def evaluate_localization_case(
         "query": case["query"],
         "impact_symbol": impact_symbol,
         "metrics": metrics,
+        "retrieval_method_counts": _retrieval_method_counts(hits),
+        "vector_hit_count": sum(1 for hit in hits if hit.retrieval_method == "vector"),
         "ranked_files": ranked_files[:5],
         "ranked_methods": ranked_methods[:10],
         "search_hits": [_hit_summary(hit) for hit in hits[:5]],
@@ -240,6 +242,13 @@ def _hit_summary(hit: SearchHit) -> dict[str, Any]:
         "line_start": hit.line_start,
         "line_end": hit.line_end,
     }
+
+
+def _retrieval_method_counts(hits: list[SearchHit]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for hit in hits:
+        counts[hit.retrieval_method] = counts.get(hit.retrieval_method, 0) + 1
+    return counts
 
 
 def _repo_tokens(repo: Path) -> int:
