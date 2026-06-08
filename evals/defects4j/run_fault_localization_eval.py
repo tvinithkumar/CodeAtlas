@@ -119,7 +119,8 @@ def evaluate_localization_case(
         vector_store = QdrantVectorStore(settings)
 
     search = HybridSearch(sqlite_store, embedding_provider, vector_store=vector_store, repo_path=repo)
-    hits = search.search(str(case["query"]), limit=limit, include_vectors=include_vectors)
+    search_result = search.search_detailed(str(case["query"]), limit=limit, include_vectors=include_vectors)
+    hits = search_result.hits
     impact_symbol = str(case.get("impact_symbol") or _first_expected_method(case) or case["query"])
     impact = ImpactAnalyzer(sqlite_store).analyze(
         impact_symbol,
@@ -145,7 +146,10 @@ def evaluate_localization_case(
         "impact_symbol": impact_symbol,
         "metrics": metrics,
         "retrieval_method_counts": _retrieval_method_counts(hits),
-        "vector_hit_count": sum(1 for hit in hits if hit.retrieval_method == "vector"),
+        "raw_retrieval_method_counts": search_result.raw_retrieval_method_counts,
+        "vector_hit_count": search_result.raw_retrieval_method_counts.get("vector", 0),
+        "fused_vector_hit_count": sum(1 for hit in hits if hit.retrieval_method == "vector"),
+        "retrieval_errors": search_result.errors,
         "ranked_files": ranked_files[:5],
         "ranked_methods": ranked_methods[:10],
         "search_hits": [_hit_summary(hit) for hit in hits[:5]],

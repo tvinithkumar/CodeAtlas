@@ -36,6 +36,21 @@ class CapturingVectorStore:
         self.points.extend(points)
 
 
+class DuplicateVectorStore:
+    def search(self, vector, limit: int = 10):
+        return [
+            {
+                "id": "vector-1",
+                "score": 0.9,
+                "file_path": "service.py",
+                "symbol": "retry_delay",
+                "content": "def retry_delay(): pass",
+                "line_start": 1,
+                "line_end": 1,
+            }
+        ]
+
+
 def test_indexes_python_symbols_and_searches(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -103,6 +118,31 @@ def retry_delay(attempt: int) -> int:
     assert retry_payload["graph_context"][0]["edge_type"] == "reads_config"
     assert file_payload["symbol_count"] == 2
     assert "retry_delay" in file_payload["defined_symbols"]
+
+
+def test_hybrid_search_reports_raw_vector_counts_after_fusion(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "service.py").write_text("def retry_delay():\n    pass\n", encoding="utf-8")
+
+    settings = Settings(sqlite_path=tmp_path / "codeatlas.db")
+    indexer = RepositoryIndexer(
+        settings=settings,
+        enable_qdrant=False,
+        embedding_generator=HashEmbeddingGenerator(),
+    )
+    indexer.index(repo)
+    search = HybridSearch(
+        indexer.sqlite_store,
+        indexer.embedding_generator,
+        vector_store=DuplicateVectorStore(),
+    )
+
+    result = search.search_detailed("retry_delay", include_vectors=True)
+
+    assert result.raw_retrieval_method_counts["vector"] == 1
+    assert result.errors == {}
+    assert result.hits
 
 
 def test_graph_search_finds_config_metrics_and_impact(tmp_path: Path) -> None:

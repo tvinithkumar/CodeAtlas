@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from codeatlas.enrichment.embedding_generator import EmbeddingGenerator
@@ -11,6 +12,13 @@ from codeatlas.retrieval.vector_search import VectorSearch
 from codeatlas.storage.models import SearchHit
 from codeatlas.storage.sqlite_store import SQLiteStore
 from codeatlas.storage.vector_store import QdrantVectorStore
+
+
+@dataclass(frozen=True)
+class HybridSearchResult:
+    hits: list[SearchHit]
+    raw_retrieval_method_counts: dict[str, int]
+    errors: dict[str, str] = field(default_factory=dict)
 
 
 class HybridSearch:
@@ -32,19 +40,34 @@ class HybridSearch:
         self.reranker = ReciprocalRankFusion()
 
     def search(self, query: str, limit: int = 10, include_vectors: bool = True) -> list[SearchHit]:
+        return self.search_detailed(query, limit=limit, include_vectors=include_vectors).hits
+
+    def search_detailed(self, query: str, limit: int = 10, include_vectors: bool = True) -> HybridSearchResult:
         plan = self.query_analyzer.classify(query)
         ranked_lists: list[tuple[float, list[SearchHit]]] = []
+        raw_counts: dict[str, int] = {}
+        errors: dict[str, str] = {}
 
         if self.repo_path is not None:
             ripgrep_hits = self.ripgrep_retriever.search_hits(self.repo_path, query, max_results=limit)
             ranked_lists.append((plan.ripgrep_weight, ripgrep_hits))
+            raw_counts["ripgrep"] = len(ripgrep_hits)
 
-        ranked_lists.append((plan.fts_weight, self.fts_search.search(query, limit=limit)))
+        fts_hits = self.fts_search.search(query, limit=limit)
+        ranked_lists.append((plan.fts_weight, fts_hits))
+        raw_counts["fts"] = len(fts_hits)
         if include_vectors and self.vector_store is not None:
             try:
                 vector_search = VectorSearch(self.embedding_generator, self.vector_store)
-                ranked_lists.append((plan.vector_weight, vector_search.search(query, limit=limit)))
-            except Exception:
-                pass
+                vector_hits = vector_search.search(query, limit=limit)
+                ranked_lists.append((plan.vector_weight, vector_hits))
+                raw_counts["vector"] = len(vector_hits)
+            except Exception as exc:
+                raw_counts["vector"] = 0
+                errors["vector"] = str(exc)
 
-        return self.reranker.fuse(ranked_lists, limit=limit)
+        return HybridSearchResult(
+            hits=self.reranker.fuse(ranked_lists, limit=limit),
+            raw_retrieval_method_counts=raw_counts,
+            errors=errors,
+        )
