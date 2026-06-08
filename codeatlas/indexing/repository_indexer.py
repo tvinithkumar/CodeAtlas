@@ -73,6 +73,8 @@ class RepositoryIndexer:
                                 "unit_type": chunk.unit_type,
                                 "file_path": chunk.file_path,
                                 "symbol": chunk.symbol_qualified_name,
+                                "line_start": chunk.start_line,
+                                "line_end": chunk.end_line,
                                 "content": chunk.content,
                             },
                         )
@@ -90,6 +92,8 @@ class RepositoryIndexer:
                             "unit_type": file_summary.unit_type,
                             "file_path": file_summary.file_path,
                             "symbol": file_summary.symbol_qualified_name,
+                            "line_start": file_summary.start_line,
+                            "line_end": file_summary.end_line,
                             "content": file_summary.content,
                         },
                     )

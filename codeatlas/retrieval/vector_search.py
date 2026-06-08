@@ -21,7 +21,8 @@ class VectorSearch:
                 content=str(row["content"]),
                 source="qdrant",
                 retrieval_method="vector",
+                line_start=row.get("line_start"),
+                line_end=row.get("line_end"),
             )
             for row in self.vector_store.search(vector, limit=limit)
         ]
-

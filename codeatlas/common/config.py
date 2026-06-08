@@ -33,7 +33,7 @@ class Settings:
     qdrant_collection: str = "codeatlas_chunks"
     embeddings: EmbeddingSettings = EmbeddingSettings()
     llm: LLMSettings = LLMSettings()
-    include_globs: tuple[str, ...] = ("*.py",)
+    include_globs: tuple[str, ...] = ("*.py", "*.java")
     exclude_dirs: tuple[str, ...] = (
         ".git",
         ".venv",

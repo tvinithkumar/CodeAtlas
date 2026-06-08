@@ -29,5 +29,6 @@ class RepositoryLoader:
     def _language_for(self, path: Path) -> str:
         if path.suffix == ".py":
             return "python"
+        if path.suffix == ".java":
+            return "java"
         return path.suffix.lstrip(".") or "text"
-

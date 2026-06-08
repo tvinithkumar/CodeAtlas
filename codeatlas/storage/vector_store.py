@@ -40,17 +40,27 @@ class QdrantVectorStore:
 
     def search(self, vector: list[float], limit: int = 10) -> list[dict[str, object]]:
         self.ensure_collection()
-        hits = self.client.search(
-            collection_name=self.settings.qdrant_collection,
-            query_vector=vector,
-            limit=limit,
-        )
+        if hasattr(self.client, "query_points"):
+            result = self.client.query_points(
+                collection_name=self.settings.qdrant_collection,
+                query=vector,
+                limit=limit,
+            )
+            hits = result.points
+        else:
+            hits = self.client.search(
+                collection_name=self.settings.qdrant_collection,
+                query_vector=vector,
+                limit=limit,
+            )
         return [
             {
                 "id": str(hit.id),
                 "score": float(hit.score),
                 "file_path": hit.payload.get("file_path", ""),
                 "symbol": hit.payload.get("symbol", ""),
+                "line_start": hit.payload.get("line_start"),
+                "line_end": hit.payload.get("line_end"),
                 "content": hit.payload.get("content", ""),
             }
             for hit in hits

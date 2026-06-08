@@ -31,6 +31,6 @@ class ASTChunker:
     def _unit_type(self, symbol: Symbol) -> str:
         if symbol.kind == "class":
             return "class_chunk"
-        if symbol.kind in {"function", "async_function"}:
+        if symbol.kind in {"function", "async_function", "method", "constructor"}:
             return "function_chunk"
         return "symbol_profile"
