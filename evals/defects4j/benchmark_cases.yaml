@@ -1,0 +1,8 @@
+- bug_id: Lang_1b
+  query: "NumberFormatException createNumber 80000000 hexadecimal parsing"
+  impact_symbol: createInteger
+  expected_files:
+    - src/main/java/org/apache/commons/lang3/math/NumberUtils.java
+  expected_methods:
+    - org.apache.commons.lang3.math.NumberUtils.createNumber
+    - org.apache.commons.lang3.math.NumberUtils.createInteger
