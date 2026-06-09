@@ -30,6 +30,7 @@ mcp = [
 [project.scripts]
 codeatlas = "codeatlas.cli:main"
 codeatlas-eval = "evals.run_retrieval_eval:main"
+codeatlas-defects4j-build-cases = "evals.defects4j.build_cases:main"
 codeatlas-defects4j-benchmark = "evals.defects4j.benchmark:main"
 codeatlas-defects4j-eval = "evals.defects4j.run_fault_localization_eval:main"
 codeatlas-index = "codeatlas.indexing.repository_indexer:main"

@@ -1,8 +1,35 @@
 - bug_id: Lang_1b
-  query: "NumberFormatException createNumber 80000000 hexadecimal parsing"
+  project: Lang
+  query: NumberFormatException createNumber 80000000 hexadecimal parsing
   impact_symbol: createInteger
   expected_files:
-    - src/main/java/org/apache/commons/lang3/math/NumberUtils.java
+  - src/main/java/org/apache/commons/lang3/math/NumberUtils.java
   expected_methods:
-    - org.apache.commons.lang3.math.NumberUtils.createNumber
-    - org.apache.commons.lang3.math.NumberUtils.createInteger
+  - org.apache.commons.lang3.math.NumberUtils.createNumber
+  - org.apache.commons.lang3.math.NumberUtils.createInteger
+  modified_classes:
+  - org.apache.commons.lang3.math.NumberUtils
+  triggering_tests:
+  - org.apache.commons.lang3.math.NumberUtilsTest::TestLang747
+- bug_id: Lang_3b
+  project: Lang
+  query: NumberUtils NumberUtilsTest testStringCreateNumberEnsureNoPrecisionLoss
+  impact_symbol: NumberUtils
+  expected_files:
+  - src/main/java/org/apache/commons/lang3/math/NumberUtils.java
+  expected_methods: []
+  modified_classes:
+  - org.apache.commons.lang3.math.NumberUtils
+  triggering_tests:
+  - org.apache.commons.lang3.math.NumberUtilsTest::testStringCreateNumberEnsureNoPrecisionLoss
+- bug_id: Lang_4b
+  project: Lang
+  query: LookupTranslator LookupTranslatorTest testLang882
+  impact_symbol: LookupTranslator
+  expected_files:
+  - src/main/java/org/apache/commons/lang3/text/translate/LookupTranslator.java
+  expected_methods: []
+  modified_classes:
+  - org.apache.commons.lang3.text.translate.LookupTranslator
+  triggering_tests:
+  - org.apache.commons.lang3.text.translate.LookupTranslatorTest::testLang882

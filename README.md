@@ -291,12 +291,26 @@ SQLite FTS
 hybrid CodeAtlas retrieval
 ```
 
-Run Defects4J localization benchmarks across all cases in a case file:
+Generate Defects4J localization cases from Defects4J metadata:
+
+```bash
+codeatlas-defects4j-build-cases \
+  --defects4j-home /Users/vinithkumar/personal/defects4j \
+  --projects Lang Math Time Closure \
+  --limit-per-project 10 \
+  --output /private/tmp/codeatlas-defects4j-cases.yaml
+```
+
+Use `--resolve-layout` when building a larger, final benchmark suite. It checks
+out each bug first and asks Defects4J for the exact source directory, which is
+slower but avoids wrong expected paths for older project layouts.
+
+Run localization benchmarks across all cases in a case file:
 
 ```bash
 codeatlas-defects4j-benchmark \
   --defects4j-home /Users/vinithkumar/personal/defects4j \
-  --cases evals/defects4j/benchmark_cases.yaml \
+  --cases /private/tmp/codeatlas-defects4j-cases.yaml \
   --work-dir /private/tmp/codeatlas-defects4j-benchmark \
   --output /private/tmp/codeatlas-defects4j-benchmark/results.json \
   --reuse-checkouts
@@ -306,7 +320,11 @@ It checks out each `bug_id`, indexes it, runs hybrid retrieval plus impact
 analysis, and reports:
 
 ```text
+File Recall@1
 File Recall@5
+File Recall@10
+Method Recall@1
+Method Recall@5
 Method Recall@10
 MRR
 Context Compression Ratio

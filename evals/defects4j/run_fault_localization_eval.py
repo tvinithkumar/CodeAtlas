@@ -141,9 +141,15 @@ def evaluate_localization_case(
     ranked_files = _rank_files(hits, impact)
     ranked_methods = _rank_methods(hits, impact)
     retrieved_tokens = _retrieved_tokens(hits, impact)
+    expected_files = list(case.get("expected_files", []))
+    expected_methods = list(case.get("expected_methods", []))
     metrics = {
-        "file_recall_at_5": recall_at_k(ranked_files, list(case.get("expected_files", [])), 5),
-        "method_recall_at_10": recall_at_k(ranked_methods, list(case.get("expected_methods", [])), 10),
+        "file_recall_at_1": recall_at_k(ranked_files, expected_files, 1),
+        "file_recall_at_5": recall_at_k(ranked_files, expected_files, 5),
+        "file_recall_at_10": recall_at_k(ranked_files, expected_files, 10),
+        "method_recall_at_1": recall_at_k(ranked_methods, expected_methods, 1) if expected_methods else None,
+        "method_recall_at_5": recall_at_k(ranked_methods, expected_methods, 5) if expected_methods else None,
+        "method_recall_at_10": recall_at_k(ranked_methods, expected_methods, 10) if expected_methods else None,
         "mrr": reciprocal_rank([*ranked_methods, *ranked_files], _relevant_items(case)),
         "context_compression_ratio": compression_ratio(raw_context_tokens, retrieved_tokens),
     }
@@ -252,11 +258,16 @@ def _impact_summary(impact: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
-def _summary(metrics: list[dict[str, float]]) -> dict[str, float]:
+def _summary(metrics: list[dict[str, float | None]]) -> dict[str, float]:
     if not metrics:
         return {}
-    keys = metrics[0].keys()
-    return {key: sum(item[key] for item in metrics) / len(metrics) for key in keys}
+    keys = sorted({key for item in metrics for key in item})
+    summary: dict[str, float] = {}
+    for key in keys:
+        values = [item[key] for item in metrics if item.get(key) is not None]
+        if values:
+            summary[key] = sum(values) / len(values)
+    return summary
 
 
 def _hit_summary(hit: SearchHit) -> dict[str, Any]:
