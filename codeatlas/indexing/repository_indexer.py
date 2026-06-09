@@ -89,17 +89,20 @@ class RepositoryIndexer:
 
         self.sqlite_store.commit()
         if self.vector_store is not None:
-            try:
-                self.vector_store.upsert(vector_points)
-            except Exception:
-                pass
+            self.vector_store.upsert(vector_points)
 
         edge_count = sum(
             len(self.sqlite_store.get_symbol_edges(symbol.id, direction="out"))
             for source_file in files
             for symbol in self.extractor.extract(source_file)
         )
-        return {"files": len(files), "symbols": symbol_count, "chunks": chunk_count, "edges": edge_count}
+        return {
+            "files": len(files),
+            "symbols": symbol_count,
+            "chunks": chunk_count,
+            "edges": edge_count,
+            "vectors": len(vector_points),
+        }
 
     def _build_llm_enricher(self) -> LLMEnricher | None:
         if not self.settings.llm.enabled:

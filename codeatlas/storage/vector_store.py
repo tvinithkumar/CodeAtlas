@@ -30,16 +30,18 @@ class QdrantVectorStore:
     def check_available(self) -> None:
         self.client.get_collections()
 
-    def upsert(self, points: list[tuple[str, list[float], dict[str, object]]]) -> None:
+    def upsert(self, points: list[tuple[str, list[float], dict[str, object]]], batch_size: int = 128) -> None:
         if not points:
             return
         from qdrant_client.models import PointStruct
 
         self.ensure_collection()
-        self.client.upsert(
-            collection_name=self.settings.qdrant_collection,
-            points=[PointStruct(id=point_id, vector=vector, payload=payload) for point_id, vector, payload in points],
-        )
+        for start in range(0, len(points), batch_size):
+            batch = points[start : start + batch_size]
+            self.client.upsert(
+                collection_name=self.settings.qdrant_collection,
+                points=[PointStruct(id=point_id, vector=vector, payload=payload) for point_id, vector, payload in batch],
+            )
 
     def search(self, vector: list[float], limit: int = 10) -> list[dict[str, object]]:
         self.ensure_collection()
