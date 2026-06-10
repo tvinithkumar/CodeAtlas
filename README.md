@@ -162,6 +162,16 @@ tree-sitter
 tree-sitter-java
 ```
 
+Parser support:
+
+| Language | Parser | Status |
+| --- | --- | --- |
+| Python | `ast` | Supported |
+| Java | `tree-sitter-java` | Supported |
+| JavaScript | Tree-sitter planned | Not implemented |
+| TypeScript | Tree-sitter planned | Not implemented |
+| Go | Tree-sitter planned | Not implemented |
+
 Indexed Java relationships currently include:
 
 ```text
