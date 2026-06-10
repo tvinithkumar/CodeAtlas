@@ -9,14 +9,20 @@ The MVP is intentionally local-first:
 ```text
 RepositoryIndexer
   -> RepositoryLoader
-  -> PythonParser
+  -> PythonParser / JavaParser
   -> SymbolExtractor
   -> ASTChunker
   -> SymbolProfiler
-  -> HashEmbeddingGenerator
+  -> FastEmbed / Sentence Transformers / Hash embeddings
   -> SQLiteStore + QdrantVectorStore
-  -> Ripgrep + FTS + Vector
+  -> Ripgrep + FTS + Vector + Graph
   -> HybridSearch
+```
+
+Current differentiator:
+
+```text
+symbol retrieval + exact search + vector search + graph edges + impact analysis
 ```
 
 ## MVP Storage
@@ -65,16 +71,24 @@ queries_table
 
 ## Quick Start
 
-Install the package in editable mode:
+Create and install the package in editable mode:
+
+```bash
+uv sync --extra dev
+```
+
+Or with pip:
 
 ```bash
 pip install -e ".[dev]"
 ```
 
-Install optional LLM support:
+Install optional features when needed:
 
 ```bash
 pip install -e ".[llm]"
+pip install -e ".[embeddings]"
+pip install -e ".[mcp]"
 ```
 
 Index a repository with SQLite only:
@@ -111,6 +125,12 @@ docker run -p 6333:6333 qdrant/qdrant
 codeatlas index /path/to/repo
 ```
 
+Use the checked-in Qdrant config:
+
+```bash
+codeatlas --config codeatlas.qdrant.yml.example index /path/to/repo
+```
+
 Search and inspect graph relationships:
 
 ```bash
@@ -130,10 +150,26 @@ By default, the SQLite database is written to:
 
 ## Current Scope
 
-The first implementation supports Python source files. It extracts classes,
-functions, async functions, symbol relationships, symbol chunks, and file
-summaries. It stores metadata in SQLite, indexes lexical content with FTS5,
-and can upsert vectors to Qdrant.
+The current implementation supports Python and Java source files. It extracts
+classes, functions, methods, constructors, fields, symbol relationships, symbol
+chunks, and file summaries. It stores metadata in SQLite, indexes lexical
+content with FTS5, and can upsert vectors to Qdrant.
+
+Java parsing uses Tree-sitter:
+
+```text
+tree-sitter
+tree-sitter-java
+```
+
+Indexed Java relationships currently include:
+
+```text
+imports
+inherits
+calls
+uses
+```
 
 Embeddings default to the local FastEmbed model:
 
@@ -246,7 +282,7 @@ non-LLM symbol profile.
 
 ## Retrieval Modes
 
-CodeAtlas has three retrieval modes:
+CodeAtlas has four retrieval modes:
 
 ```text
 Ripgrep retrieval
@@ -258,6 +294,9 @@ Symbol/FTS retrieval
 
 Semantic retrieval
   -> Qdrant vector search over enriched code profiles and chunks
+
+Graph retrieval
+  -> symbol relationships, usages, related symbols, and impact analysis
 ```
 
 Hybrid search routes exact-looking queries toward ripgrep, then fuses ripgrep,
@@ -291,6 +330,8 @@ SQLite FTS
 hybrid CodeAtlas retrieval
 ```
 
+### Defects4J Benchmarks
+
 Generate Defects4J localization cases from Defects4J metadata:
 
 ```bash
@@ -316,6 +357,19 @@ codeatlas-defects4j-benchmark \
   --reuse-checkouts
 ```
 
+Run with Qdrant vectors:
+
+```bash
+codeatlas-defects4j-benchmark \
+  --defects4j-home /Users/vinithkumar/personal/defects4j \
+  --cases evals/defects4j/benchmark_cases.yaml \
+  --work-dir /private/tmp/codeatlas-defects4j-benchmark \
+  --output /private/tmp/codeatlas-defects4j-benchmark/results-qdrant.json \
+  --config codeatlas.qdrant.yml.example \
+  --with-vectors \
+  --reuse-checkouts
+```
+
 It checks out each `bug_id`, indexes it, runs hybrid retrieval plus impact
 analysis, and reports:
 
@@ -329,6 +383,21 @@ Method Recall@10
 MRR
 Context Compression Ratio
 ```
+
+Current verified smoke result on three generated Lang bugs with Qdrant enabled:
+
+```text
+File Recall@1:              0.33
+File Recall@5:              1.00
+File Recall@10:             1.00
+Method Recall@10:           1.00   # curated method labels for Lang_1b
+MRR:                        0.403
+Context Compression Ratio:  989.45x
+```
+
+Interpretation: the correct patched file is consistently in the top five, but
+generated Defects4J queries often rank triggering tests before source files.
+That makes `File Recall@1` and MRR useful ranking targets for the next round.
 
 ## MCP Server
 
@@ -366,9 +435,9 @@ max_total_chars = 12000
 Planned next steps:
 
 ```text
-1. Add Tree-sitter parsers for JavaScript, TypeScript, Go, and Java.
-2. Expand Python relationship extraction for attribute resolution and cross-file imports.
-3. Add incremental indexing.
-4. Add file summaries from a real local or provider LLM.
+1. Scale Defects4J evaluation across Lang, Math, Time, and Closure.
+2. Add baseline comparisons: ripgrep-only, FTS-only, vector-only, hybrid, hybrid+graph.
+3. Improve ranking so patched source files outrank triggering tests.
+4. Add Tree-sitter parsers for JavaScript, TypeScript, and Go.
 5. Introduce Postgres after the MVP data model stabilizes.
 ```
